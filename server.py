@@ -7,6 +7,7 @@ from typing import List, Dict, Any
 import logging
 from pathlib import Path
 import simpleaudio as sa
+from collections import OrderedDict
 from typing import List
 from time import time
 
@@ -25,10 +26,105 @@ SHOW = [
     # ...
 ]
 
+WHITE_CHRISTMAS = [
+    # Intialize start to on
+    {"t": 0.0, "id": "1A", "state": 0.0},
+    {"t": 0.0, "id": "1B", "state": 0.0},
+    {"t": 0.0, "id": "2A", "state": 0.0},
+    {"t": 0.0, "id": "2B", "state": 0.0},
+    {"t": 0.0, "id": "3A", "state": 0.0},
+    {"t": 0.0, "id": "3B", "state": 0.0},
+    {"t": 0.0, "id": "4A", "state": 0.0},
+    {"t": 0.0, "id": "4B", "state": 0.0},
+    {"t": 0.0, "id": "5A", "state": 0.0},
+    {"t": 0.0, "id": "5B", "state": 0.0},
+    {"t": 0.0, "id": "6A", "state": 0.0},
+    {"t": 0.0, "id": "6B", "state": 0.0},
+
+    # Initial 4 notes (turn things off)
+    {"t": 2.6, "id": "1A", "state": 1.0},
+    {"t": 2.6, "id": "1B", "state": 1.0},
+    {"t": 2.6, "id": "6A", "state": 1.0},
+    {"t": 2.6, "id": "6B", "state": 1.0},
+
+    {"t": 3.75, "id": "2A", "state": 1.0},
+    {"t": 3.75, "id": "2B", "state": 1.0},
+    {"t": 3.75, "id": "5A", "state": 1.0},
+    {"t": 3.75, "id": "5B", "state": 1.0},
+
+    {"t": 5.12, "id": "3A", "state": 1.0},
+    {"t": 5.12, "id": "4B", "state": 1.0},
+
+    {"t": 6.21, "id": "3B", "state": 1.0},
+    {"t": 6.21, "id": "4A", "state": 1.0},
+
+    # Second 4 notes, turn things on
+    {"t": 7.55, "id": "1B", "state": 0.0},
+    {"t": 7.55, "id": "1A", "state": 0.0},
+    {"t": 7.55, "id": "6A", "state": 0.0},
+    {"t": 7.55, "id": "6B", "state": 0.0},
+
+    {"t": 8.78, "id": "2A", "state": 0.0},
+    {"t": 8.78, "id": "5B", "state": 0.0},
+
+    {"t": 10.05, "id": "2B", "state": 0.0},
+    {"t": 10.05, "id": "5A", "state": 0.0},
+
+    {"t": 10.54, "id": "3A", "state": 0.0},
+    {"t": 10.54, "id": "4B", "state": 0.0},
+
+    {"t": 11.20, "id": "3B", "state": 0.0},
+    {"t": 11.20, "id": "4A", "state": 0.0},
+]
+
+WHITE_CHRISTMAS = [
+    # Intialize start to on
+    {"t": 0.0, "id": "1A", "state": 0.0},
+    {"t": 0.0, "id": "1B", "state": 0.0},
+    {"t": 0.0, "id": "2A", "state": 0.0},
+    {"t": 0.0, "id": "2B", "state": 0.0},
+    {"t": 0.0, "id": "3A", "state": 0.0},
+    {"t": 0.0, "id": "3B", "state": 0.0},
+    {"t": 0.0, "id": "4A", "state": 0.0},
+    {"t": 0.0, "id": "4B", "state": 0.0},
+    {"t": 0.0, "id": "6A", "state": 0.0},
+    {"t": 0.0, "id": "6B", "state": 0.0},
+
+    # Initial 4 notes (turn things off)
+    {"t": 2.6, "id": "1B", "state": 1.0},
+    {"t": 2.6, "id": "1A", "state": 1.0},
+    {"t": 2.6, "id": "6B", "state": 1.0},
+    {"t": 2.6, "id": "6A", "state": 1.0},
+
+    {"t": 3.75, "id": "2B", "state": 1.0},
+    {"t": 3.75, "id": "4A", "state": 1.0},
+
+    {"t": 5.12, "id": "2A", "state": 1.0},
+    {"t": 5.12, "id": "4B", "state": 1.0},
+
+    {"t": 6.21, "id": "3B", "state": 1.0},
+    {"t": 5.21, "id": "3A", "state": 1.0},
+
+    # Second 4 notes, turn things on
+    {"t": 7.55, "id": "1B", "state": 0.0},
+    {"t": 7.55, "id": "6A", "state": 0.0},
+
+    {"t": 8.78, "id": "1A", "state": 0.0},
+    {"t": 8.78, "id": "6B", "state": 0.0},
+
+    {"t": 10.05, "id": "2B", "state": 0.0},
+    {"t": 10.05, "id": "4A", "state": 0.0},
+
+    {"t": 10.54, "id": "2A", "state": 0.0},
+    {"t": 10.54, "id": "4B", "state": 0.0},
+
+    {"t": 11.20, "id": "3B", "state": 0.0},
+    {"t": 11.20, "id": "3A", "state": 0.0},
+]
+
 SHOW = [
     {"t": i, "id": "79563461152192-14", "state": float(i%2)} for i in range(60)
 ]
-
 
 class WebsocketServer:
 
@@ -50,6 +146,20 @@ class WebsocketServer:
         if len(ids) != len(set(ids)):
             raise KeyError("Duplicate id in 'ids', ignoring.")
         return data["ids"]
+    
+    def preprocess_show(self, cues) -> OrderedDict[List[Dict[str,str]]]:
+        """Combines same-time events into one event."""
+        sorted_cue = sorted(cues, key=lambda x: x['t'])
+        ordered_dict_cue = OrderedDict() # I believe dictionary order is preserved
+
+        for cue in cues:
+            t = cue['t']
+            if t not in ordered_dict_cue:
+                ordered_dict_cue[t] = []
+            # Add to that cue
+            ordered_dict_cue[t].append({"id": cue["id"], "state": cue["state"]})
+
+        return ordered_dict_cue
 
     async def handle_connect(self, websocket):
         logging.info("Received connection!")
@@ -133,21 +243,34 @@ class WebsocketServer:
 
         start = time()
 
-        cues = sorted(cues, key=lambda x: x['t'])
+        cues = self.preprocess_show(cues)
+        logging.info("Preprocessed cues")
 
-        for cue in cues:
-            t = cue['t']
-            id = cue['id']
-            state = cue['state']
+        for timestamp in cues:
+            try:
 
-            now = time() - start
+                now = time() - start
 
-            if t > now:
-                await asyncio.sleep(t - now)
+                if timestamp > now:
+                    logging.info(f"Waiting for {timestamp}, it is currently {now}")
+                    await asyncio.sleep(timestamp - now)
 
-            now = time() - start
-            await self.send_state(id, state)
-            logging.info(f"{t}: {id} -> {state}\t\t({now})")
+                now = time() - start
+
+                cue_data = cues[timestamp]
+                futures = []
+                for event in cue_data:
+                    id = event['id']
+                    state = event['state']
+                    id = self.reverse_id_mapping[id]
+                    logging.info(f"{timestamp}: {id} -> {state}\t\t({now})")
+                    futures.append(self.send_state(id, state))
+                await asyncio.gather(*futures)
+
+            except Exception as e:
+                logging.error(e)
+                logging.error(e.with_traceback())
+                return
 
         # Optionally wait until audio finishes (in a thread, since wait_done is blocking)
         await asyncio.to_thread(play_obj.wait_done)
@@ -172,8 +295,8 @@ async def main():
     port = 8765
     server = WebsocketServer(host, port, id_mapping)
     
-    # await asyncio.gather(server.serve(), server.console(), server.play_show(Path("./whitechristmas.wav"), SHOW))
-    await asyncio.gather(server.serve(), server.console())
+    await asyncio.gather(server.serve(), server.console(), server.play_show(Path("./whitechristmas.wav"), WHITE_CHRISTMAS))
+    # await asyncio.gather(server.serve(), server.console())
 
 if __name__ == "__main__":
     asyncio.run(main())
