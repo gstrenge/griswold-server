@@ -32,9 +32,11 @@ SHOW = [
 
 class WebsocketServer:
 
-    def __init__(self, host, port):
+    def __init__(self, host, port, id_mapping: Dict[str, str]):
         self.host = host
         self.port = port
+        self.id_mapping = id_mapping
+        self.reverse_id_mapping = {value: key for key, value in id_mapping.items()}
 
         self.connections: Dict[str, Any] = {}
 
@@ -80,10 +82,31 @@ class WebsocketServer:
         while True:
             cmd = (await asyncio.to_thread(input, ">> "))
             args = cmd.split(',')
-            if len(args) != 2:
-                continue
-            id, state = args
-            await self.send_state(id, state)
+            cmd_type = args[0]
+
+            # Connections
+            if cmd_type == "c":
+                logging.info("Connections:")
+                logging.info("\n".join(self.connections.keys()))
+
+            # Set
+            elif cmd_type == "sr":
+                if len(args) != 3:
+                    continue
+                id, state = args[1:]
+                await self.send_state(id, state)
+
+            elif cmd_type == "s":
+                if len(args) != 3:
+                    continue
+                id, state = args[1:]
+
+                mapped_id = self.reverse_id_mapping.get(id)
+                if mapped_id is None:
+                    logging.warn("Invalid ID")
+                    continue
+
+                await self.send_state(mapped_id, state)
 
     async def send_state(self, id: str, state: float):
         ws = self.connections.get(id)
@@ -140,11 +163,17 @@ async def main():
     """
     Starts the WebSocket server.
     """
-    host = "192.168.1.210"
+
+    id_mapping_path = Path(__file__).parent / "id_mapping.json"
+    with open(id_mapping_path, "r") as id_mapping_file:
+        id_mapping = json.load(id_mapping_file)
+
+    host = "192.168.1.10"
     port = 8765
-    server = WebsocketServer(host, port)
+    server = WebsocketServer(host, port, id_mapping)
     
-    await asyncio.gather(server.serve(), server.console(), server.play_show(Path("./whitechristmas.wav"), SHOW))
+    # await asyncio.gather(server.serve(), server.console(), server.play_show(Path("./whitechristmas.wav"), SHOW))
+    await asyncio.gather(server.serve(), server.console())
 
 if __name__ == "__main__":
     asyncio.run(main())
