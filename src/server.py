@@ -401,11 +401,11 @@ async def main():
     # Make a schedule with datetime that just represents time of day with no dates
 
     schedule = DailySchedule(datetime.time(17, 0), datetime.time(23, 0))
-    host = "localhost"
+    host = "0.0.0.0"
     port = 8765
 
     server = WebsocketServer(host, port, id_mapping, playlist_path, schedule)
-    await asyncio.gather(server.serve(), server.console(), server.run())
+    await asyncio.gather(server.serve(), server.run())
 
 if __name__ == "__main__":
     asyncio.run(main())

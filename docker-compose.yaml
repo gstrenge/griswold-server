@@ -1,0 +1,30 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./config:/app/config
+      - ./shows:/app/shows
+      - /etc/localtime:/etc/localtime:ro  # Sync timezone with host
+    environment:
+      - TZ=America/Chicago  # Change to your timezone
+    restart: unless-stopped
+    # Required for audio playback from container
+    devices:
+      - /dev/snd:/dev/snd
+    group_add:
+      - audio
+
+  # Placeholder for future frontend
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - server
+
