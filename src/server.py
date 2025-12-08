@@ -20,15 +20,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 
-SHOW = [
-    {"t": 0.0, "id": "79563461152192-14", "state": 0.0},
-    {"t": 1.0, "id": "79563461152192-14", "state": 0.0},
-    {"t": 1.2, "id": "79563461152192-14", "state": 1.0},
-    {"t": 5, "id": "79563461152192-14", "state": 0.0},
-    {"t": 8, "id": "79563461152192-14", "state": 1.0},
-    # ...
-]
-
 @dataclass
 class DailySchedule:
     start_time: datetime.time
@@ -45,57 +36,6 @@ class LightShow:
     song_name: str
     music_file: Path
     light_cues: List[LightCue]
-
-WHITE_CHRISTMAS = [
-    # Intialize start to on
-    {"t": 0.0, "id": "1A", "state": 0.0},
-    {"t": 0.0, "id": "1B", "state": 0.0},
-    {"t": 0.0, "id": "2A", "state": 0.0},
-    {"t": 0.0, "id": "2B", "state": 0.0},
-    {"t": 0.0, "id": "3A", "state": 0.0},
-    {"t": 0.0, "id": "3B", "state": 0.0},
-    {"t": 0.0, "id": "4A", "state": 0.0},
-    {"t": 0.0, "id": "4B", "state": 0.0},
-    {"t": 0.0, "id": "5A", "state": 0.0},
-    {"t": 0.0, "id": "5B", "state": 0.0},
-    {"t": 0.0, "id": "6A", "state": 0.0},
-    {"t": 0.0, "id": "6B", "state": 0.0},
-
-    # Initial 4 notes (turn things off)
-    {"t": 2.6, "id": "1A", "state": 1.0},
-    {"t": 2.6, "id": "1B", "state": 1.0},
-    {"t": 2.6, "id": "6A", "state": 1.0},
-    {"t": 2.6, "id": "6B", "state": 1.0},
-
-    {"t": 3.75, "id": "2A", "state": 1.0},
-    {"t": 3.75, "id": "2B", "state": 1.0},
-    {"t": 3.75, "id": "5A", "state": 1.0},
-    {"t": 3.75, "id": "5B", "state": 1.0},
-
-    {"t": 5.12, "id": "3A", "state": 1.0},
-    {"t": 5.12, "id": "4B", "state": 1.0},
-
-    {"t": 6.21, "id": "3B", "state": 1.0},
-    {"t": 6.21, "id": "4A", "state": 1.0},
-
-    # Second 4 notes, turn things on
-    {"t": 7.55, "id": "1B", "state": 0.0},
-    {"t": 7.55, "id": "1A", "state": 0.0},
-    {"t": 7.55, "id": "6A", "state": 0.0},
-    {"t": 7.55, "id": "6B", "state": 0.0},
-
-    {"t": 8.78, "id": "2A", "state": 0.0},
-    {"t": 8.78, "id": "5B", "state": 0.0},
-
-    {"t": 10.05, "id": "2B", "state": 0.0},
-    {"t": 10.05, "id": "5A", "state": 0.0},
-
-    {"t": 10.54, "id": "3A", "state": 0.0},
-    {"t": 10.54, "id": "4B", "state": 0.0},
-
-    {"t": 11.20, "id": "3B", "state": 0.0},
-    {"t": 11.20, "id": "4A", "state": 0.0},
-]
 
 WHITE_CHRISTMAS = [
     # Intialize start to on
@@ -147,10 +87,6 @@ WHITE_CHRISTMAS = [
     {"t": 28.20, "id": "SNOWMACHINE_1", "state": 0.0},
     
 
-]
-
-SHOW = [
-    {"t": i, "id": "79563461152192-14", "state": float(i%2)} for i in range(60)
 ]
 
 class WebsocketServer:
@@ -304,36 +240,46 @@ class WebsocketServer:
         except Exception as e:
             logging.warning(f"Error sending to {id}: {e}")
             
-    async def run(self):
+    async def run_forever(self):
         try:
-            logging.info("Beginning queue")
-            while True:
-                now = datetime.datetime.now().time()
-                # If we are out of the scheduled time
-                # if now < self.schedule.start_time or now > self.schedule.end_time:
-                #     logging.info("Outside of schedule")
-                #     await asyncio.sleep(60)
-                #     continue
-                
-                # We are inside the current scheduled time
-                logging.info("Inside of schedule, playing next")
-
-                # Check queue first
-                if not self.request_queue.empty():
-                    logging.info("Playing from request queue")
-                    song = self.request_queue.get()
-                else:
-                    logging.info("Playing from playlist queue")
-                    if self.queue.empty():
-                        logging.info("Refilling queue")
-                        # If the queue is empty, refill it
-                        for show in self.playlist:
-                            self.queue.put(show)
-                    song = self.queue.get()
-                await self.play_show(song)
+            await self.run()
         except Exception as e:
             logging.error(e)
             logging.error(e.with_traceback())
+
+    async def run(self):
+        logging.info("Running server")
+        while True:
+            now = datetime.datetime.now().time()
+            # If we are out of the scheduled time
+            if now < self.schedule.start_time or now > self.schedule.end_time:
+                logging.info("Outside of schedule")
+                await asyncio.sleep(60)
+                continue
+            
+            # We are inside the current scheduled time
+            logging.info("Inside of schedule, playing next")
+
+            # Check queue first
+            if not self.request_queue.empty():
+                logging.info("Playing from request queue")
+                song = self.request_queue.get()
+            else:
+                logging.info("Playing from playlist queue")
+                if self.queue.empty():
+                    # If the queue is empty, refill it
+                    logging.info("Refreshing playlist")
+                    if self.load_playlist():
+                        logging.info("Successfully reloaded playlist")
+                    else:
+                        logging.warn("Using existing playlist")
+
+                    logging.info("Refilling queue with playlist")
+                    for show in self.playlist:
+                        self.queue.put(show)
+                song = self.queue.get()
+            await self.play_show(song)
+
     def get_queue(self):
         """Gets the current view only queue that reflects the order of which songs are played next"""
         return list(self.request_queue.queue) + list(self.queue.queue)
@@ -395,34 +341,51 @@ class WebsocketServer:
         async with serve(self.handle_connect, self.host, self.port) as server:
             await server.serve_forever()
 
+    def load_playlist(self) -> bool:
+        """
+        Attempts to reload the playlist from disk.
+        Returns True if successful, False if the file was being edited.
+        On failure, the existing playlist remains unchanged.
+        """
+        try:
+            with open(self.playlist_path, 'r') as playlist_file:
+                content = playlist_file.read()
+                if not content.strip():
+                    logging.warning("Playlist file is empty, keeping previous playlist")
+                    return False
+                new_playlist = json.loads(content)
+                self.playlist = new_playlist
+                logging.info("Playlist reloaded successfully")
+                return True
+        except json.JSONDecodeError as e:
+            logging.warning(f"Playlist file appears to be mid-edit (invalid JSON): {e}")
+            return False
+        except FileNotFoundError:
+            logging.error("Playlist file not found")
+            return False
+        except Exception as e:
+            logging.warning(f"Error loading playlist: {e}")
+            return False
+
 async def main():
     """
     Starts the WebSocket server.
     """
-
-    id_mapping_path = Path(__file__).parent / "id_mapping.json"
+    config_path = Path(__file__).parent.parent / "config"
+    id_mapping_path = config_path / "id_mapping.json"
     with open(id_mapping_path, "r") as id_mapping_file:
         id_mapping = json.load(id_mapping_file)
-        
-    white_christmas1 = LightShow("White Christmas 1", "./short.wav", [])
-    white_christmas2 = LightShow("White Christmas 2", "./short.wav", [])
-    white_christmas3 = LightShow("White Christmas 3", "./short.wav", [])
-    white_christmas_req = LightShow("White Christmas Requested", "./short.wav", [])
     
-    playlist = [white_christmas1, white_christmas2, white_christmas3]
+    playlist_path = config_path / "playlist.json"
     
     # Make a schedule with datetime that just represents time of day with no dates
-    
-    schedule = DailySchedule(datetime.time(17, 0), datetime.time(23, 0))
 
-    host = "192.168.1.10"
+    schedule = DailySchedule(datetime.time(17, 0), datetime.time(23, 0))
+    host = "localhost"
     port = 8765
+
     server = WebsocketServer(host, port, id_mapping, playlist, schedule)
-    
-    await asyncio.gather(server.serve(), server.console(), server.play_show_old(Path("./whitechristmas.wav"), WHITE_CHRISTMAS))
-    # await asyncio.gather(server.console(), server.run())
-    # await asyncio.gather(server.serve(), server.console(), server.run())
-    # await asyncio.gather(server.serve(), server.console())
+    await asyncio.gather(server.serve(), server.console(), server.run())
 
 if __name__ == "__main__":
     asyncio.run(main())
