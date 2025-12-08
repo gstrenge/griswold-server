@@ -1,1 +1,197 @@
-[]
+[
+    {
+      "t": 0,
+      "id": "JOY_J",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "JOY_O",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "JOY_Y",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "PresMid",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "PresOut",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_1",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_10",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_2",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_3",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_4",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_5",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_6",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_7",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_8",
+      "state": 1
+    },
+    {
+      "t": 0,
+      "id": "Tree_9",
+      "state": 1
+    },
+    {
+      "t": 0.31,
+      "id": "Tree_1",
+      "state": 1
+    },
+    {
+      "t": 0.31,
+      "id": "Tree_2",
+      "state": 1
+    },
+    {
+      "t": 0.31,
+      "id": "Tree_3",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "JOY_J",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "JOY_O",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "JOY_Y",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "PresMid",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "PresOut",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "Tree_10",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "Tree_4",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "Tree_5",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "Tree_6",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "Tree_7",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "Tree_8",
+      "state": 1
+    },
+    {
+      "t": 0.32,
+      "id": "Tree_9",
+      "state": 1
+    },
+    {
+      "t": 1.983,
+      "id": "PresOut",
+      "state": 0
+    },
+    {
+      "t": 2.49,
+      "id": "Tree_1",
+      "state": 0
+    },
+    {
+      "t": 2.49,
+      "id": "Tree_5",
+      "state": 0
+    },
+    {
+      "t": 2.65,
+      "id": "PresMid",
+      "state": 0
+    },
+    {
+      "t": 3.84,
+      "id": "Tree_2",
+      "state": 0
+    },
+    {
+      "t": 3.84,
+      "id": "Tree_4",
+      "state": 0
+    },
+    {
+      "t": 4.19,
+      "id": "PresOut",
+      "state": 1
+    },
+    {
+      "t": 4.83,
+      "id": "Tree_3",
+      "state": 0
+    },
+    {
+      "t": 5.3,
+      "id": "PresMid",
+      "state": 1
+    }
+  ]

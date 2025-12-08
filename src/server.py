@@ -91,7 +91,7 @@ WHITE_CHRISTMAS = [
 
 class WebsocketServer:
 
-    def __init__(self, host, port, id_mapping: Dict[str, str], playlist: List[LightShow], schedule: DailySchedule):
+    def __init__(self, host, port, id_mapping: Dict[str, str], playlist_path: str, schedule: DailySchedule):
         self.host = host
         self.port = port
         self.id_mapping = id_mapping
@@ -101,7 +101,12 @@ class WebsocketServer:
         self.schedule = schedule
         
         # Represents the playlist being repeated
-        self.playlist: List[LightShow] = playlist
+        self.playlist_path = playlist_path
+        self.playlist: List[LightShow] = []
+
+        if not self.load_playlist():
+            logging.error("Failed to load playlist!")
+            raise Exception("Failed to load playlist!")
         # Represents the playlist queue
         self.queue: Queue[LightShow] = Queue()
         # Represents the actively requested songs that have priority
@@ -187,26 +192,18 @@ class WebsocketServer:
                 
             elif cmd_type == "snow":
                 logging.info("Turning on snow machine")
-                snowmachine_id = self.reverse_id_mapping.get("SNOWMACHINE_1")
-                spotlight1_id = self.reverse_id_mapping.get("4A")
-                spotlight2_id = self.reverse_id_mapping.get("4B")
-                
                 await asyncio.gather(
-                    self.send_state(snowmachine_id, 1.0),
-                    self.send_state(spotlight1_id, 0.0),
-                    self.send_state(spotlight2_id, 0.0),
+                    self.send_state("SNOWMACHINE_1", 1.0),
+                    self.send_state("4A", 0.0),
+                    self.send_state("4B", 0.0),
                 )
                 
             elif cmd_type == "nosnow":
                 logging.info("Turning off snow machine")
-                snowmachine_id = self.reverse_id_mapping.get("SNOWMACHINE_1")
-                spotlight1_id = self.reverse_id_mapping.get("4A")
-                spotlight2_id = self.reverse_id_mapping.get("4B")
-                
                 await asyncio.gather(
-                    self.send_state(snowmachine_id, 0.0),
-                    self.send_state(spotlight1_id, 1.0),
-                    self.send_state(spotlight2_id, 1.0),
+                    self.send_state("SNOWMACHINE_1", 0.0),
+                    self.send_state("4A", 1.0),
+                    self.send_state("4B", 1.0),
                 )
 
             # Set
@@ -214,31 +211,32 @@ class WebsocketServer:
                 if len(args) != 3:
                     continue
                 id, state = args[1:]
-                await self.send_state(id, state)
+                await self._send_state(id, state)
 
             elif cmd_type == "s":
                 if len(args) != 3:
                     continue
                 id, state = args[1:]
+                await self.send_state(id, state)
 
-                mapped_id = self.reverse_id_mapping.get(id)
-                if mapped_id is None:
-                    logging.warn("Invalid ID")
-                    continue
-
-                await self.send_state(mapped_id, state)
-
-    async def send_state(self, id: str, state: float):
-        ws = self.connections.get(id)
+    async def _send_state(self, raw_id: str, state: float):
+        ws = self.connections.get(raw_id)
         if not ws:
-            logging.warning(f"No connection for ID {id}, skipping")
+            logging.warning(f"No connection for ID {raw_id}, skipping")
             return
-        msg = json.dumps({"id": id, "state": float(state)})
+        msg = json.dumps({"id": raw_id, "state": float(state)})
         try:
             await ws.send(msg)
-            logging.info(f"Sent to {id}: {state}")
+            logging.info(f"Sent to {raw_id}: {state}")
         except Exception as e:
-            logging.warning(f"Error sending to {id}: {e}")
+            logging.warning(f"Error sending to {raw_id}: {e}")
+
+    async def send_state(self, id: str, state: float):
+        raw_id = self.reverse_id_mapping.get(id)
+        if raw_id is None:
+            logging.warning(f"ID {id} not found in mapping! Ignoring...")
+            return
+        await self._send_state(raw_id, state)
             
     async def run_forever(self):
         try:
@@ -256,72 +254,63 @@ class WebsocketServer:
                 logging.info("Outside of schedule")
                 await asyncio.sleep(60)
                 continue
-            
-            # We are inside the current scheduled time
-            logging.info("Inside of schedule, playing next")
 
             # Check queue first
             if not self.request_queue.empty():
-                logging.info("Playing from request queue")
-                song = self.request_queue.get()
+                selected_queue_msg = "[Request]"
+                show = self.request_queue.get()
             else:
-                logging.info("Playing from playlist queue")
                 if self.queue.empty():
+                    logging.info("Queue is empty, refreshing playlist.")
                     # If the queue is empty, refill it
-                    logging.info("Refreshing playlist")
-                    if self.load_playlist():
-                        logging.info("Successfully reloaded playlist")
-                    else:
-                        logging.warn("Using existing playlist")
-
-                    logging.info("Refilling queue with playlist")
+                    self.load_playlist()
+                    logging.info(f"Refilling queue with playlist: {[show.song_name for show in self.playlist]}")
                     for show in self.playlist:
                         self.queue.put(show)
-                song = self.queue.get()
-            await self.play_show(song)
+                selected_queue_msg = "[Playlist]"
+                show = self.queue.get()
+
+            logging.info(f"{selected_queue_msg} Playing {show.song_name}")
+            await self.play_show(show)
+            logging.info(f"{selected_queue_msg} Finished {show.song_name}")
+
 
     def get_queue(self):
         """Gets the current view only queue that reflects the order of which songs are played next"""
         return list(self.request_queue.queue) + list(self.queue.queue)
     
     async def play_show(self, show: LightShow):
-        logging.info(f"Playing {show.song_name}")
-        await asyncio.sleep(10)
-        logging.info(f"Finished {show.song_name}")
 
-    async def play_show_old(self, wav_path: Path, cues: List):
+        # Preprocess the cues
+        logging.debug("Preprocessing cues")
+        cues = self.preprocess_show(show.light_cues)
 
-        await asyncio.sleep(10)
+        logging.debug(f"Loading audio {show.music_file}")
+        audio_file = sa.WaveObject.from_wave_file(str(show.music_file))
+        logging.debug(f"Playing audio {show.music_file}")
+        play_object = audio_file.play()
 
-        logging.info("Loading from wav")
-        audio_file = sa.WaveObject.from_wave_file(str(wav_path))
-
-        logging.info("Playing wav")
-        play_obj = audio_file.play()
-        logging.info("After")
-
+        # Keep track of when we started
         start = time()
-
-        cues = self.preprocess_show(cues)
-        logging.info("Preprocessed cues")
-
         for timestamp in cues:
             try:
-
+                # Get the current time into the song
                 now = time() - start
 
+                # If we are early to the next cue, wait for it
                 if timestamp > now:
                     logging.info(f"Waiting for {timestamp}, it is currently {now}")
                     await asyncio.sleep(timestamp - now)
 
+                # Get the current time after sleeping
                 now = time() - start
 
-                cue_data = cues[timestamp]
+                # Extract the events at this timestamp
+                events = cues[timestamp]
                 futures = []
-                for event in cue_data:
+                for event in events:
                     id = event['id']
                     state = event['state']
-                    id = self.reverse_id_mapping[id]
                     logging.info(f"{timestamp}: {id} -> {state}\t\t({now})")
                     futures.append(self.send_state(id, state))
                 await asyncio.gather(*futures)
@@ -332,14 +321,38 @@ class WebsocketServer:
                 return
 
         # Optionally wait until audio finishes (in a thread, since wait_done is blocking)
-        await asyncio.to_thread(play_obj.wait_done)
+        await asyncio.to_thread(play_object.wait_done)
         logging.info("Done with song!")
-
 
     async def serve(self):
         logging.info(f"Starting websocket server: ws://{self.host}:{self.port}")
         async with serve(self.handle_connect, self.host, self.port) as server:
             await server.serve_forever()
+
+    def load_show(self, show_name: str) -> LightShow:
+        show_path = Path(__file__).parent.parent / "shows" / show_name
+        light_cues_path = show_path / f"{show_name}.json"
+        music_file_path = show_path / f"{show_name}.wav"
+
+        with open(light_cues_path, 'r') as light_cues_file:
+            light_cues = json.load(light_cues_file)
+
+        # Validate that light_cues is a list of dicts with expected keys
+        if not isinstance(light_cues, list):
+            raise ValueError(f"{light_cues_path} does not contain a JSON array (list) of cues.")
+
+        expected_keys = {"id", "state", "t"}
+        for idx, elem in enumerate(light_cues):
+            if not isinstance(elem, dict):
+                raise ValueError(f"Element at index {idx} in {light_cues_path} is not a JSON object/dict.")
+            missing = expected_keys - set(elem.keys())
+            if missing:
+                raise ValueError(f"Element at index {idx} in {light_cues_path} missing keys: {missing}")
+
+        if not music_file_path.exists():
+            raise FileNotFoundError(f"{music_file_path} not found!")
+
+        return LightShow(show_name, music_file_path, light_cues)
 
     def load_playlist(self) -> bool:
         """
@@ -353,7 +366,14 @@ class WebsocketServer:
                 if not content.strip():
                     logging.warning("Playlist file is empty, keeping previous playlist")
                     return False
-                new_playlist = json.loads(content)
+                show_names = json.loads(content)
+                new_playlist = []
+                for show_name in show_names:
+                    try:
+                        new_playlist.append(self.load_show(show_name))
+                    except Exception as e:
+                        logging.error(f"Error loading show {show_name}: {e}")
+                        continue
                 self.playlist = new_playlist
                 logging.info("Playlist reloaded successfully")
                 return True
@@ -384,7 +404,7 @@ async def main():
     host = "localhost"
     port = 8765
 
-    server = WebsocketServer(host, port, id_mapping, playlist, schedule)
+    server = WebsocketServer(host, port, id_mapping, playlist_path, schedule)
     await asyncio.gather(server.serve(), server.console(), server.run())
 
 if __name__ == "__main__":
