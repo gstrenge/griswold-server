@@ -6,7 +6,7 @@ import json
 from typing import List, Dict, Any
 import logging
 from pathlib import Path
-import simpleaudio as sa
+import pygame
 from collections import OrderedDict
 from queue import Queue
 from typing import List
@@ -96,6 +96,8 @@ class WebsocketServer:
         self.port = port
         self.id_mapping = id_mapping
         self.reverse_id_mapping = {value: key for key, value in id_mapping.items()}
+
+        pygame.mixer.init()
         
         # Represents the schedule of when to start playing and when to stop playing
         self.schedule = schedule
@@ -246,6 +248,7 @@ class WebsocketServer:
             logging.error(e.with_traceback())
 
     async def run(self):
+        await asyncio.sleep(60)
         logging.info("Running server")
         while True:
             now = datetime.datetime.now().time()
@@ -280,32 +283,26 @@ class WebsocketServer:
         return list(self.request_queue.queue) + list(self.queue.queue)
     
     async def play_show(self, show: LightShow):
-
         # Preprocess the cues
         logging.debug("Preprocessing cues")
         cues = self.preprocess_show(show.light_cues)
 
         logging.debug(f"Loading audio {show.music_file}")
-        audio_file = sa.WaveObject.from_wave_file(str(show.music_file))
-        logging.debug(f"Playing audio {show.music_file}")
-        play_object = audio_file.play()
+        sound = pygame.mixer.Sound(str(show.music_file))
 
-        # Keep track of when we started
+        logging.debug(f"Playing audio {show.music_file}")
+        channel = sound.play()  # non-blocking
+
         start = time()
         for timestamp in cues:
             try:
-                # Get the current time into the song
                 now = time() - start
 
-                # If we are early to the next cue, wait for it
                 if timestamp > now:
                     logging.info(f"Waiting for {timestamp}, it is currently {now}")
                     await asyncio.sleep(timestamp - now)
 
-                # Get the current time after sleeping
                 now = time() - start
-
-                # Extract the events at this timestamp
                 events = cues[timestamp]
                 futures = []
                 for event in events:
@@ -320,9 +317,13 @@ class WebsocketServer:
                 logging.error(e.with_traceback())
                 return
 
-        # Optionally wait until audio finishes (in a thread, since wait_done is blocking)
-        await asyncio.to_thread(play_object.wait_done)
+        # Wait for the audio to finish
+        while channel.get_busy():
+            await asyncio.sleep(0.05)
+
         logging.info("Done with song!")
+
+
 
     async def serve(self):
         logging.info(f"Starting websocket server: ws://{self.host}:{self.port}")
