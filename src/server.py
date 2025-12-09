@@ -224,7 +224,7 @@ class WebsocketServer:
         if not ws:
             logging.warning(f"No connection for ID {raw_id}, skipping")
             return
-        msg = json.dumps({"id": raw_id, "state": float(state)})
+        msg = json.dumps({"id": raw_id, "state": 1.0 - float(state)})
         try:
             await ws.send(msg)
             logging.info(f"Sent to {raw_id}: {state}")
