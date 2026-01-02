@@ -248,7 +248,7 @@ class WebsocketServer:
             logging.error(e.with_traceback())
 
     async def run(self):
-        await asyncio.sleep(60)
+        await asyncio.sleep(30)
         logging.info("Running server")
         while True:
             now = datetime.datetime.now().time()
@@ -401,7 +401,7 @@ async def main():
     
     # Make a schedule with datetime that just represents time of day with no dates
 
-    schedule = DailySchedule(datetime.time(17, 0), datetime.time(23, 0))
+    schedule = DailySchedule(datetime.time(14, 0), datetime.time(23, 0))
     host = "0.0.0.0"
     port = 8765
 
